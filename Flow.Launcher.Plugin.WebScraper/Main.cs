@@ -91,7 +91,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                     new()
                     {
                         Title = "The HTTP request timed out",
-                        SubTitle = "Check whether the URL is reachable"
+                        SubTitle = "Please check whether the URL is reachable"
                     }
                 };
             }
@@ -102,8 +102,8 @@ namespace Flow.Launcher.Plugin.WebScraper
                 {
                     new()
                     {
-                        Title = "The URL did not return valid HTML",
-                        SubTitle = "Check whether the URL returns valid HTML"
+                        Title = "The URL did not return a valid HTML response",
+                        SubTitle = "Please check whether the configured URL returns an HTML response"
                     }
                 };
             }
@@ -157,7 +157,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                         new()
                         {
                             Title = $"Xpaths returned incompatible element counts: {string.Join(", ", evaluatedXpathDict.Select(x => x.Value.Count).Distinct())}",
-                            SubTitle = "Check whether the variable bindings are configured correctly"
+                            SubTitle = "Please check whether the variable bindings are configured correctly"
                         }
                     };
                 }
