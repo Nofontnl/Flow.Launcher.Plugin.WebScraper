@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flow.Launcher.Plugin.WebScraper", "Flow.Launcher.Plugin.WebScraper.csproj", "{C2E044FF-6E54-A268-B045-AEFE6BE51DCE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C2E044FF-6E54-A268-B045-AEFE6BE51DCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2E044FF-6E54-A268-B045-AEFE6BE51DCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2E044FF-6E54-A268-B045-AEFE6BE51DCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2E044FF-6E54-A268-B045-AEFE6BE51DCE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {451F8979-F43A-47AC-8B8F-4FC86D044850}
+	EndGlobalSection
+EndGlobal

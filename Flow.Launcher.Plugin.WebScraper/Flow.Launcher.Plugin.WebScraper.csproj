@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Flow.Launcher.Plugin.WebScraper</AssemblyName>
+    <PackageId>Flow.Launcher.Plugin.WebScraper</PackageId>
+    <Authors>Nofontnl</Authors>
+    <PackageProjectUrl>https://github.com/Nofontnl/Flow.Launcher.Plugin.WebScraper</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Nofontnl/Flow.Launcher.Plugin.WebScraper</RepositoryUrl>
+    <PackageTags>flow-launcher flow-plugin</PackageTags>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>None</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <_OutputCopyLocation>C:/Users/me/AppData/Roaming/FlowLauncher/Plugins/WebScraper/</_OutputCopyLocation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="plugin.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Flow.Launcher.Plugin" Version="4.4.0" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+  </ItemGroup>
+
+  <Target Name="CopyToFlowLauncher" AfterTargets="Build">
+    <ItemGroup>
+      <_PluginFiles Include="$(TargetDir)$(TargetName).dll" />
+      <_PluginFiles Include="$(TargetDir)HtmlAgilityPack.dll" />
+      <_PluginFiles Include="plugin.json" />
+      <!-- <_PluginFiles Include="icon.png" /> -->
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_PluginFiles)" DestinationFolder="$(_OutputCopyLocation)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

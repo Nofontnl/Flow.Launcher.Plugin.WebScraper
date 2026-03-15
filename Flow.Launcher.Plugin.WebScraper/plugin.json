@@ -1,0 +1,12 @@
+{
+    "ID": "211E5D954B464A408740C088A6551C98",
+    "ActionKeyword": "scrape",
+    "Name": "Web Scraper",
+    "Description": "Scrape the web and display the results from Flow Launcher",
+    "Author": "Nofontnl",
+    "Version": "1.0.0",
+    "Language": "csharp",
+    "Website": "https://github.com/Nofontnl/Flow.Launcher.Plugin.WebScraper",
+    "IcoPath": "icon.png",
+    "ExecuteFileName": "Flow.Launcher.Plugin.WebScraper.dll"
+}
