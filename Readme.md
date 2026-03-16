@@ -47,7 +47,7 @@ The plugin can be configured using JSON. An example is provided below.
 where
 * `ScrapeConfigs`: list that contains all scrape configurations.
 * `Keyword`: keyword needed to be typed to scrape using a particular scrape configuration.
-* `Tag`: tag to describe what this template is for.
+* `Tag`: tag to describe what this scrape configuration is for.
 * `Url`: URL that leads to the page you want to scrape with a particular scrape configuration.
 * `ScrapeResults`: list that contains result templates for a particular scrape configuration.
 * `Title`: title template for one (or more) scrape results.* Can contain variables using `${variable}` notation.
