@@ -33,6 +33,18 @@ namespace Flow.Launcher.Plugin.WebScraper
             );
         }
 
+        private List<Result> SingleResult(string title, string subtitle)
+        {
+            return new List<Result>
+            {
+                new()
+                {
+                    Title = title,
+                    SubTitle = subtitle
+                }
+            };
+        }
+
         private string GetCachedIconPath(string url)
         {
             string filename = Convert.ToBase64String(Encoding.UTF8.GetBytes(url))
@@ -79,11 +91,50 @@ namespace Flow.Launcher.Plugin.WebScraper
             // No config keyword entered, so show options
             if (query.SearchTerms.Length == 0)
             {
+                // Merge configurations with the same keyword
                 List<Result> options = new();
-                options.AddRange(
-                    validScrapeConfigs.Select(x => new Result
+                var mergedScrapeConfigs = new Dictionary<string, List<string>>();
+                var scores = new Dictionary<string, int>();
+
+                for (int i = 0; i < validScrapeConfigs.Count; i++)
+                {
+                    var scrapeConfig = validScrapeConfigs[i];
+
+                    // Add description to list, create list if key doesn't exist
+                    if (!mergedScrapeConfigs.TryGetValue(scrapeConfig.Keyword, out var list))
                     {
-                        Title = x.Keyword
+                        list = new List<string>();
+                        mergedScrapeConfigs[scrapeConfig.Keyword] = list;
+
+                        // Store the priority calculated by first occurrence's index
+                        scores[scrapeConfig.Keyword] = validScrapeConfigs.Count - i;
+                    }
+
+                    list.Add(scrapeConfig.Tag);
+                }
+
+                // Rename empty tags only if there are multiple tags to be displayed
+                foreach (var mergedScrapeConfig in mergedScrapeConfigs)
+                {
+                    if (mergedScrapeConfig.Value.Count == 1) continue;
+                    var newVal = mergedScrapeConfig.Value.Select(x =>
+                    {
+                        return x == "" ? "No tag" : x;
+                    }).ToList();
+                    mergedScrapeConfigs[mergedScrapeConfig.Key] = newVal;
+                }
+
+                options.AddRange(
+                    mergedScrapeConfigs.Select(kvp => new Result
+                    {
+                        Title = kvp.Key,
+                        SubTitle = string.Join(", ", kvp.Value),
+                        Action = _ =>
+                        {
+                            _context.API.ChangeQuery(query + " " + kvp.Key);
+                            return false;
+                        },
+                        Score = scores[kvp.Key]
                     })
                 );
                 return options;
@@ -91,138 +142,127 @@ namespace Flow.Launcher.Plugin.WebScraper
 
             // Find configuration with correct scrape keyword
             string scrapeKeyword = query.SearchTerms[0];
-            ScrapeConfig scrapeConfig = validScrapeConfigs.FirstOrDefault(x => x.Keyword == scrapeKeyword);
+            List<ScrapeConfig> scrapeConfigs = validScrapeConfigs.Where(x => x.Keyword == scrapeKeyword).ToList();
 
             // No configuration found, so show options
-            if (scrapeConfig == null)
+            if (scrapeConfigs.Count == 0)
             {
-                return new List<Result>
-                {
-                    new()
-                    {
-                        Title = $"No configuration found with keyword '{scrapeKeyword}'",
-                        SubTitle = $"Available configurations: {string.Join(", ", validScrapeConfigs.Select(x => x.Keyword))}"
-                    }
-                };
+                return SingleResult(
+                    $"No configuration found with keyword '{scrapeKeyword}'",
+                    $"Available configurations: {string.Join(", ", validScrapeConfigs.Select(x => x.Keyword).Distinct())}"
+                );
             }
 
             // Configuration was found, so do the API request
-            HttpResponseMessage data;
-            try
-            {
-                data = await _client.GetAsync(new Uri(scrapeConfig.Url), token);
-            }
-            catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
-            {
-                return new List<Result>
-                {
-                    new()
-                    {
-                        Title = "The HTTP request timed out",
-                        SubTitle = "Please check whether the URL is reachable"
-                    }
-                };
-            }
-
-            if (data.Content.Headers.ContentType?.MediaType.Contains("text/html") != true)
-            {
-                return new List<Result>
-                {
-                    new()
-                    {
-                        Title = "The URL did not return a valid HTML response",
-                        SubTitle = "Please check whether the configured URL returns an HTML response"
-                    }
-                };
-            }
-
-            string body = await data.Content.ReadAsStringAsync();
-            var doc = new HtmlDocument();
-            doc.LoadHtml(body);
-
             var results = new List<Result>();
-
-            foreach (ScrapeResult scrapeResult in scrapeConfig.ScrapeResults)
+            foreach (ScrapeConfig scrapeConfig in scrapeConfigs)
             {
-                var evaluatedXpathDict = new Dictionary<string, List<string>>();
-                foreach (KeyValuePair<string, string> variableBinding in scrapeResult.VariableBindings)
+                string body;
+                try
                 {
-                    // Extract variable keys used in Title and SubTitle
-                    var usedKeys = new HashSet<string>(
-                        VariableRegex.Matches(scrapeResult.Title).Select(m => m.Groups[1].Value)
-                        .Concat(VariableRegex.Matches(scrapeResult.SubTitle).Select(m => m.Groups[1].Value))
-                    );
-
-                    if (usedKeys.Contains(variableBinding.Key))
+                    using HttpResponseMessage data = await _client.GetAsync(new Uri(scrapeConfig.Url), token);
+                    if (data.Content.Headers.ContentType?.MediaType.Contains("text/html") != true)
                     {
-                        var htmlNodes = doc.DocumentNode.SelectNodes(variableBinding.Value);
-                        
-                        if (htmlNodes != null)
+                        return SingleResult(
+                            "The URL did not return a valid HTML response",
+                            "Please check whether the configured URL returns an HTML response"
+                        );
+                    }
+                    body = await data.Content.ReadAsStringAsync(token);
+                }
+                catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+                {
+                    return SingleResult(
+                        "The HTTP request timed out",
+                        "Please check whether the URL is reachable"
+                    );
+                }
+
+                var doc = new HtmlDocument();
+                doc.LoadHtml(body);
+
+                foreach (ScrapeResult scrapeResult in scrapeConfig.ScrapeResults)
+                {
+                    var evaluatedXpathDict = new Dictionary<string, List<string>>();
+                    foreach (KeyValuePair<string, string> variableBinding in scrapeResult.VariableBindings)
+                    {
+                        // Extract variable keys used in Title and SubTitle
+                        var usedKeys = new HashSet<string>(
+                            VariableRegex.Matches(scrapeResult.Title).Select(m => m.Groups[1].Value)
+                            .Concat(VariableRegex.Matches(scrapeResult.SubTitle).Select(m => m.Groups[1].Value))
+                        );
+
+                        if (usedKeys.Contains(variableBinding.Key))
                         {
-                            evaluatedXpathDict.Add(variableBinding.Key, new List<string>(htmlNodes.Select(x => WebUtility.HtmlDecode(x.InnerText))));
+                            var htmlNodes = doc.DocumentNode.SelectNodes(variableBinding.Value);
+                            
+                            if (htmlNodes != null)
+                            {
+                                evaluatedXpathDict.Add(variableBinding.Key, new List<string>(htmlNodes.Select(x => WebUtility.HtmlDecode(x.InnerText))));
+                            }
                         }
                     }
-                }
 
-                // Broadcast singular values
-                Dictionary<string, List<string>> processedEvaluatedXpathDict = evaluatedXpathDict;
-                int itemCount = 0;
+                    // Broadcast singular values
+                    Dictionary<string, List<string>> processedEvaluatedXpathDict = evaluatedXpathDict;
+                    int itemCount = 0;
 
-                if (evaluatedXpathDict.Count != 0)
-                {
-                    itemCount = evaluatedXpathDict.Max(x => x.Value.Count);
-                    processedEvaluatedXpathDict = evaluatedXpathDict.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value.Count == 1 ? Enumerable.Repeat(kvp.Value.ElementAt(0), itemCount).ToList() : kvp.Value
-                    );
-                }
-
-                // Check if counts are compatible
-                if (processedEvaluatedXpathDict.Select(x => x.Value.Count).Distinct().Count() > 1)
-                {
-                    return new List<Result>
+                    if (evaluatedXpathDict.Count != 0)
                     {
-                        new()
+                        itemCount = evaluatedXpathDict.Max(x => x.Value.Count);
+                        processedEvaluatedXpathDict = evaluatedXpathDict.ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => kvp.Value.Count == 1 ? Enumerable.Repeat(kvp.Value.ElementAt(0), itemCount).ToList() : kvp.Value
+                        );
+                    }
+
+                    // Check if counts are compatible
+                    if (processedEvaluatedXpathDict.Select(x => x.Value.Count).Distinct().Count() > 1)
+                    {
+                        return new List<Result>
                         {
-                            Title = $"Xpaths returned incompatible element counts: {string.Join(", ", evaluatedXpathDict.Select(x => x.Value.Count).Distinct())}",
-                            SubTitle = "Please check whether the variable bindings are configured correctly"
-                        }
-                    };
-                }
+                            new()
+                            {
+                                Title = $"Xpaths returned incompatible element counts: {string.Join(", ", evaluatedXpathDict.Select(x => x.Value.Count).Distinct())}",
+                                SubTitle = "Please check whether the variable bindings are configured correctly"
+                            }
+                        };
+                    }
 
-                // Extract icon
-                var iconNode = doc.DocumentNode.SelectSingleNode("//link[contains(@rel, \"icon\")]");
-                var icoPath = new Uri(new Uri(scrapeConfig.Url), "/favicon.ico").AbsoluteUri;
-                if (iconNode != null)
-                {
-                    var href = iconNode.GetAttributeValue("href", null);
-                    icoPath = new Uri(new Uri(scrapeConfig.Url), href).AbsoluteUri;
-                }
-                var icoPathLocal = await GetIconAsync(icoPath);
+                    // Extract icon
+                    var iconNode = doc.DocumentNode.SelectSingleNode("//link[contains(@rel, \"icon\")]");
+                    var icoPath = new Uri(new Uri(scrapeConfig.Url), "/favicon.ico").AbsoluteUri;
+                    if (iconNode != null)
+                    {
+                        var href = iconNode.GetAttributeValue("href", null);
+                        icoPath = new Uri(new Uri(scrapeConfig.Url), href).AbsoluteUri;
+                    }
+                    var icoPathLocal = await GetIconAsync(icoPath);
 
-                for (var i = 0; i < itemCount; i++)
-                {
-                    var fullTitle = VariableRegex.Replace(scrapeResult.Title, match =>
+                    for (var i = 0; i < itemCount; i++)
                     {
-                        string key = match.Groups[1].Value;
-                        return processedEvaluatedXpathDict.TryGetValue(key, out var value) ? value.ElementAt(i) : match.Value;
-                    });
-                    var fullSubTitle = VariableRegex.Replace(scrapeResult.SubTitle, match =>
-                    {
-                        string key = match.Groups[1].Value;
-                        return processedEvaluatedXpathDict.TryGetValue(key, out var value) ? value.ElementAt(i) : match.Value;
-                    });
-                    results.Add(new()
-                    {
-                        Title = fullTitle,
-                        SubTitle = fullSubTitle,
-                        Action = _ =>
+                        var fullTitle = VariableRegex.Replace(scrapeResult.Title, match =>
                         {
-                            _context.API.OpenUrl(scrapeConfig.Url);
-                            return true;
-                        },
-                        IcoPath = icoPathLocal
-                    });
+                            string key = match.Groups[1].Value;
+                            return processedEvaluatedXpathDict.TryGetValue(key, out var value) ? value.ElementAt(i) : match.Value;
+                        });
+                        var fullSubTitle = VariableRegex.Replace(scrapeResult.SubTitle, match =>
+                        {
+                            string key = match.Groups[1].Value;
+                            return processedEvaluatedXpathDict.TryGetValue(key, out var value) ? value.ElementAt(i) : match.Value;
+                        });
+                        results.Add(new()
+                        {
+                            Title = fullTitle,
+                            SubTitle = fullSubTitle,
+                            Action = _ =>
+                            {
+                                _context.API.OpenUrl(scrapeConfig.Url);
+                                return true;
+                            },
+                            IcoPath = icoPathLocal
+                        });
+                    }
                 }
             }
 

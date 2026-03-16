@@ -15,6 +15,7 @@ public class ScrapeResult
 public class ScrapeConfig
 {
     public string Keyword { get; set; } = "";
+    public string Tag { get; set; } = "";
     public string Url { get; set; } = "";
     public ObservableCollection<ScrapeResult> ScrapeResults { get; set; } = new();
 }
