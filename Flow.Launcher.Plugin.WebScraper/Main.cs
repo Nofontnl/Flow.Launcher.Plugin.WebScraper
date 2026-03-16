@@ -170,11 +170,18 @@ namespace Flow.Launcher.Plugin.WebScraper
                     }
                     body = await data.Content.ReadAsStringAsync(token);
                 }
+                catch (HttpRequestException)
+                {
+                    return SingleResult(
+                        "No internet connection / cannot reach host",
+                        "Please check your internet connection"
+                    );
+                }
                 catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
                 {
                     return SingleResult(
                         "The HTTP request timed out",
-                        "Please check whether the URL is reachable"
+                        "The website may be slow or unreachable. Try again"
                     );
                 }
 
