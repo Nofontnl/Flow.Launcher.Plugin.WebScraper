@@ -1,20 +1,20 @@
-Flow.Launcher.Plugin.WebScraper
-==================
+# Flow.Launcher.Plugin.WebScraper
+
 
 A plugin that lets you scrape information from webpages and display them in the [Flow launcher](https://github.com/Flow-Launcher/Flow.Launcher).
 
-### Installation
+## Installation
 ```
 pm install Web Scraper
 ```
 
-### Usage
+## Usage
 
     scrape <config_keyword>
 
 where `config_keyword` is the keyword set in one of the scrape configurations.
 
-#### Scrape configurations
+### Scrape configurations
 The plugin can be configured using JSON. An example is provided below.
 ```json
 {
@@ -56,7 +56,7 @@ where
 \* If an XPath matches multiple elements, multiple results will be generated when possible.
 
 `scrape example` will scrape the header text, the link text, and the paragraph text using their XPaths. Two results will be displayed:
-1. Title: `The header is: 'Example Domain'`
+1. Title: `The header is: 'Example Domain'`  
 Subtitle: `The link reads: 'Learn more'`
 2. Title: `The paragraph says: 'This domain is for use in documentation examples without needing permission. Avoid use in operations.'`
 
