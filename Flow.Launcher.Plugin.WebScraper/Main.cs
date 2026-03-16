@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -20,6 +22,7 @@ namespace Flow.Launcher.Plugin.WebScraper
         private HttpClient _client;
         private PluginInitContext _context;
         private Settings _settings;
+        private static string _faviconCacheDirectory;
 
         private static readonly Regex VariableRegex = new(@"\$\{(\w+)\}", RegexOptions.Compiled);
 
@@ -28,6 +31,29 @@ namespace Flow.Launcher.Plugin.WebScraper
             return new ObservableCollection<ScrapeConfig>(
                 _settings.ScrapeConfigs.Where(x => !string.IsNullOrWhiteSpace(x.Keyword))
             );
+        }
+
+        private string GetCachedIconPath(string url)
+        {
+            string filename = Convert.ToBase64String(Encoding.UTF8.GetBytes(url))
+                            .Replace("=", "") + ".png";
+            return Path.Combine(_faviconCacheDirectory, filename);
+        }
+
+        private async Task<string> GetIconAsync(string url)
+        {
+            string localPath = GetCachedIconPath(url);
+
+            if (!File.Exists(localPath))
+            {
+                using var response = await _client.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                await File.WriteAllBytesAsync(localPath, bytes);
+            }
+
+            return localPath;
         }
 
         public Control CreateSettingPanel()
@@ -40,6 +66,8 @@ namespace Flow.Launcher.Plugin.WebScraper
             _context = context;
             _settings = _context.API.LoadSettingJsonStorage<Settings>() ?? new Settings();
             _client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            _faviconCacheDirectory = Path.Combine(_context.CurrentPluginMetadata.PluginDirectory, "IconCache");
+            Directory.CreateDirectory(_faviconCacheDirectory);
             return Task.CompletedTask;
         }
 
@@ -162,6 +190,16 @@ namespace Flow.Launcher.Plugin.WebScraper
                     };
                 }
 
+                // Extract icon
+                var iconNode = doc.DocumentNode.SelectSingleNode("//link[contains(@rel, \"icon\")]");
+                var icoPath = new Uri(new Uri(scrapeConfig.Url), "/favicon.ico").AbsoluteUri;
+                if (iconNode != null)
+                {
+                    var href = iconNode.GetAttributeValue("href", null);
+                    icoPath = new Uri(new Uri(scrapeConfig.Url), href).AbsoluteUri;
+                }
+                var icoPathLocal = await GetIconAsync(icoPath);
+
                 for (var i = 0; i < itemCount; i++)
                 {
                     var fullTitle = VariableRegex.Replace(scrapeResult.Title, match =>
@@ -176,13 +214,14 @@ namespace Flow.Launcher.Plugin.WebScraper
                     });
                     results.Add(new()
                     {
-                    Title = fullTitle,
-                    SubTitle = fullSubTitle,
-                    Action = _ =>
-                    {
-                        _context.API.OpenUrl(scrapeConfig.Url);
-                        return true;
-                    }
+                        Title = fullTitle,
+                        SubTitle = fullSubTitle,
+                        Action = _ =>
+                        {
+                            _context.API.OpenUrl(scrapeConfig.Url);
+                            return true;
+                        },
+                        IcoPath = icoPathLocal
                     });
                 }
             }
