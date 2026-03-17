@@ -1,0 +1,49 @@
+name: Publish and Release
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths-ignore: 
+      - .github/workflows/*
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        uses: notiz-dev/github-action-json-property@release
+        with: 
+          path: 'Flow.Launcher.Plugin.WebScraper/plugin.json'
+          prop_path: 'Version'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+        
+      - name: Restore dependencies
+        run: dotnet restore Flow.Launcher.Plugin.WebScraper/Flow.Launcher.Plugin.WebScraper.csproj
+
+      - name: Publish plugin
+        run: dotnet publish -c Release -o publish --no-restore Flow.Launcher.Plugin.WebScraper/Flow.Launcher.Plugin.WebScraper.csproj
+
+      - name: Create plugin zip
+        run: Compress-Archive -Path publish/* -DestinationPath Flow.Launcher.Plugin.WebScraper.zip
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Flow.Launcher.Plugin.WebScraper.zip
+          tag_name: "v${{steps.version.outputs.prop}}"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
