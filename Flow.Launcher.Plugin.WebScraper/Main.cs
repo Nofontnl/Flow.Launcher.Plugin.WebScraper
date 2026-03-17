@@ -33,14 +33,15 @@ namespace Flow.Launcher.Plugin.WebScraper
             );
         }
 
-        private List<Result> SingleResult(string title, string subtitle)
+        private List<Result> SingleResult(string title, string subtitle, Func<ActionContext, bool> action = null)
         {
             return new List<Result>
             {
                 new()
                 {
                     Title = title,
-                    SubTitle = subtitle
+                    SubTitle = subtitle,
+                    Action = action
                 }
             };
         }
@@ -91,6 +92,20 @@ namespace Flow.Launcher.Plugin.WebScraper
             // No config keyword entered, so show options
             if (query.SearchTerms.Length == 0)
             {
+                // Show 'no configurations found' when the user has not added any configurations
+                if (validScrapeConfigs.Count == 0)
+                {
+                    return SingleResult(
+                        "No configurations found",
+                        "Please add a scrape configuration in the plugin settings. Select this result to open the usage guide",
+                        _ =>
+                        {
+                            _context.API.OpenUrl("https://github.com/Nofontnl/Flow.Launcher.Plugin.WebScraper");
+                            return true;
+                        }
+                    );
+                }
+                
                 // Merge configurations with the same keyword
                 List<Result> options = new();
                 var mergedScrapeConfigs = new Dictionary<string, List<string>>();
