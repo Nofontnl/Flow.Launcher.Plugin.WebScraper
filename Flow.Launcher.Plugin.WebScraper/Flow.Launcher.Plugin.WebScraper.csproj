@@ -30,14 +30,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="1.4.0" />
     <PackageReference Include="Flow.Launcher.Plugin" Version="4.4.0" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
   </ItemGroup>
 
   <Target Name="CopyToFlowLauncher" AfterTargets="Build">
     <ItemGroup>
       <_PluginFiles Include="$(TargetDir)$(TargetName).dll" />
-      <_PluginFiles Include="$(TargetDir)HtmlAgilityPack.dll" />
+      <_PluginFiles Include="$(TargetDir)AngleSharp.dll" />
       <_PluginFiles Include="plugin.json" />
       <!-- <_PluginFiles Include="icon.png" /> -->
     </ItemGroup>
