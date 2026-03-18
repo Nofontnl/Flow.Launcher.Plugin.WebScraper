@@ -6,14 +6,14 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
 using Flow.Launcher.Plugin.WebScraper.Models;
 using Flow.Launcher.Plugin.WebScraper.Views;
-using HtmlAgilityPack;
+using AngleSharp;
+using AngleSharp.Dom;
 
 namespace Flow.Launcher.Plugin.WebScraper
 {
@@ -67,6 +67,18 @@ namespace Flow.Launcher.Plugin.WebScraper
             }
 
             return localPath;
+        }
+
+        async Task<string> TryGetIconAsync(string path)
+        {
+            try
+            {
+                return await GetIconAsync(path);
+            }
+            catch (HttpRequestException)
+            {
+                return null;
+            }
         }
 
         public Control CreateSettingPanel()
@@ -200,8 +212,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                     );
                 }
 
-                var doc = new HtmlDocument();
-                doc.LoadHtml(body);
+                var document = await ParseDocument(body, token);
 
                 foreach (ScrapeResult scrapeResult in scrapeConfig.ScrapeResults)
                 {
@@ -216,11 +227,11 @@ namespace Flow.Launcher.Plugin.WebScraper
 
                         if (usedKeys.Contains(variableBinding.Key))
                         {
-                            var htmlNodes = doc.DocumentNode.SelectNodes(variableBinding.Value);
+                            IHtmlCollection<IElement> htmlNodes = document.QuerySelectorAll(variableBinding.Value);
                             
-                            if (htmlNodes != null)
+                            if (htmlNodes.Length != 0)
                             {
-                                evaluatedXpathDict.Add(variableBinding.Key, new List<string>(htmlNodes.Select(x => WebUtility.HtmlDecode(x.InnerText))));
+                                evaluatedXpathDict.Add(variableBinding.Key, new List<string>(htmlNodes.Select(x => WebUtility.HtmlDecode(x.InnerHtml))));
                             }
                         }
                     }
@@ -241,25 +252,22 @@ namespace Flow.Launcher.Plugin.WebScraper
                     // Check if counts are compatible
                     if (processedEvaluatedXpathDict.Select(x => x.Value.Count).Distinct().Count() > 1)
                     {
-                        return new List<Result>
-                        {
-                            new()
-                            {
-                                Title = $"Xpaths returned incompatible element counts: {string.Join(", ", evaluatedXpathDict.Select(x => x.Value.Count).Distinct())}",
-                                SubTitle = "Please check whether the variable bindings are configured correctly"
-                            }
-                        };
+                        return SingleResult(
+                            $"Cannot generate combinations: variables have incompatible numbers of values",
+                            $"{string.Join(", ", evaluatedXpathDict.Select(x => $"${{{x.Key}}}: {x.Value.Count} matches"))}. Please check whether the variable bindings are configured correctly"
+                        );
                     }
 
                     // Extract icon
-                    var iconNode = doc.DocumentNode.SelectSingleNode("//link[contains(@rel, \"icon\")]");
+                    var iconNode = document.QuerySelector("link[rel=\"icon\"]");
                     var icoPath = new Uri(new Uri(scrapeConfig.Url), "/favicon.ico").AbsoluteUri;
                     if (iconNode != null)
                     {
-                        var href = iconNode.GetAttributeValue("href", null);
+                        var href = iconNode.GetAttribute("href");
                         icoPath = new Uri(new Uri(scrapeConfig.Url), href).AbsoluteUri;
                     }
-                    var icoPathLocal = await GetIconAsync(icoPath);
+                    
+                    string icoPathLocal = await TryGetIconAsync(icoPath);
 
                     for (var i = 0; i < itemCount; i++)
                     {
@@ -289,6 +297,13 @@ namespace Flow.Launcher.Plugin.WebScraper
             }
 
             return results;
+        }
+
+        private static async Task<IDocument> ParseDocument(string body, CancellationToken token)
+        {
+            IConfiguration angleConfig = Configuration.Default;
+            IBrowsingContext angleContext = BrowsingContext.New(angleConfig);
+            return await angleContext.OpenAsync(req => req.Content(body), cancel: token);
         }
 
         public void SaveSettings()

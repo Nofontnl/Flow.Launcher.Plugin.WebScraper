@@ -28,15 +28,8 @@ The plugin can be configured using JSON. An example is provided below.
           "Title": "The header is: '${Header}'",
           "SubTitle": "The link reads: '${Link}'",
           "VariableBindings": {
-            "Header": "/html/body/div/h1",
-            "Link": "/html/body/div/p[2]/a"
-          }
-        },
-        {
-          "Title": "The paragraph says: '${Paragraph}'",
-          "SubTitle": "",
-          "VariableBindings": {
-            "Paragraph": "/html/body/div/p[1]"
+            "Header": "body > div:nth-child(1) > h1:nth-child(1)",
+            "Link": "body > div:nth-child(1) > p:nth-child(3) > a:nth-child(1)"
           }
         }
       ]
@@ -50,17 +43,17 @@ where
 * `Tag`: tag to describe what this scrape configuration is for.
 * `Url`: URL that leads to the page you want to scrape with a particular scrape configuration.
 * `ScrapeResults`: list that contains result templates for a particular scrape configuration.
-* `Title`: title template for one (or more) scrape results.* Can contain variables using `${variable}` notation.
-* `SubTitle`: subtitle template for one (or more) scrape results.* Can contain variables using `${variable}` notation.
-* `VariableBindings`: dictionary that maps variables to XPaths. The XPaths will be evaluated when scraping and inserted in the title and subtitle template.
+* `Title`: title template for this result template. Can contain variables using `${variable}` notation.
+* `SubTitle`: subtitle template for this result template. Can contain variables using `${variable}` notation.
+* `VariableBindings`: dictionary that maps variables to CSS selector strings. The CSS selectors strings will be matched when scraping and their matches will be inserted in the title and subtitle template.
 
 > [!NOTE]
-\* If an XPath matches multiple elements, multiple results will be generated when possible.
+If a CSS selector matches multiple elements, multiple results will be generated when possible.
 
-`scrape example` will scrape the header text, the link text, and the paragraph text using their XPaths. Two results will be displayed:
+`scrape example` will scrape the header text, the link text, and the paragraph text using their CSS selectors. Two results will be displayed:
 1. Title: `The header is: 'Example Domain'`  
 Subtitle: `The link reads: 'Learn more'`
 2. Title: `The paragraph says: 'This domain is for use in documentation examples without needing permission. Avoid use in operations.'`
 
-XPaths can be copied using the element inspector in most web browsers.
+CSS selectors can be copied using the element inspector in most web browsers, but whenever possible it is recommended to create your own in order for web scraping to work reliably.
 
