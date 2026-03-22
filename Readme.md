@@ -1,7 +1,7 @@
 # Flow.Launcher.Plugin.WebScraper
 
 
-A plugin that lets you scrape information from webpages and display them in the [Flow launcher](https://github.com/Flow-Launcher/Flow.Launcher).
+A plugin that lets you scrape information from webpages and view the results in the [Flow launcher](https://github.com/Flow-Launcher/Flow.Launcher).
 
 ## Installation
 ```
