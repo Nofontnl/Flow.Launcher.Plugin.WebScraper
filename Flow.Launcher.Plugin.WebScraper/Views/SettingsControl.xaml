@@ -5,11 +5,16 @@
     <Grid Margin="{StaticResource SettingPanelMargin}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="{StaticResource SettingPanelItemTopBottomMargin}">
+            <TextBlock Text="Timeout (seconds):" Margin="{StaticResource SettingPanelItemRightMargin}" VerticalAlignment="Center"/>
+            <TextBox Text="{Binding Timeout, Mode=TwoWay}" />
+        </StackPanel>
         <StackPanel Grid.Row="1" Orientation="Vertical" Margin="{StaticResource SettingPanelItemRightMargin}">
-            <TextBlock Text="Settings (JSON)" Margin="{StaticResource SettingPanelItemTopBottomMargin}"/>
-            <TextBox Text="{Binding SettingsJson, Mode=TwoWay}" 
+            <TextBlock Text="Scrape configurations (JSON):" Margin="{StaticResource SettingPanelItemTopBottomMargin}"/>
+            <TextBox Text="{Binding ScrapeConfigsJson, Mode=TwoWay}" 
                     AcceptsReturn="True"
                     VerticalScrollBarVisibility="Auto"
                     HorizontalScrollBarVisibility="Auto"

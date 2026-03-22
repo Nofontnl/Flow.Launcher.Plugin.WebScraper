@@ -27,21 +27,28 @@
     <Content Include="plugin.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="Images\webscraper.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\error.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="1.4.0" />
     <PackageReference Include="Flow.Launcher.Plugin" Version="4.4.0" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
   </ItemGroup>
 
   <Target Name="CopyToFlowLauncher" AfterTargets="Build">
     <ItemGroup>
       <_PluginFiles Include="$(TargetDir)$(TargetName).dll" />
-      <_PluginFiles Include="$(TargetDir)HtmlAgilityPack.dll" />
+      <_PluginFiles Include="$(TargetDir)AngleSharp.dll" />
       <_PluginFiles Include="plugin.json" />
-      <!-- <_PluginFiles Include="icon.png" /> -->
     </ItemGroup>
 
     <Copy SourceFiles="@(_PluginFiles)" DestinationFolder="$(_OutputCopyLocation)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="Images/webscraper.png" DestinationFiles="$(_OutputCopyLocation)/Images/webscraper.png" SkipUnchangedFiles="true"/>
+    <Copy SourceFiles="Images/error.png" DestinationFiles="$(_OutputCopyLocation)/Images/error.png" SkipUnchangedFiles="true"/>
   </Target>
 </Project>

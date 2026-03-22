@@ -6,14 +6,14 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
 using Flow.Launcher.Plugin.WebScraper.Models;
 using Flow.Launcher.Plugin.WebScraper.Views;
-using HtmlAgilityPack;
+using AngleSharp;
+using AngleSharp.Dom;
 
 namespace Flow.Launcher.Plugin.WebScraper
 {
@@ -23,6 +23,8 @@ namespace Flow.Launcher.Plugin.WebScraper
         private PluginInitContext _context;
         private Settings _settings;
         private static string _faviconCacheDirectory;
+        private const string WebScraperIcoPath = "Images\\webscraper.png";
+        private const string ScrapeErrorIcoPath = "Images\\error.png";
 
         private static readonly Regex VariableRegex = new(@"\$\{(\w+)\}", RegexOptions.Compiled);
 
@@ -33,7 +35,7 @@ namespace Flow.Launcher.Plugin.WebScraper
             );
         }
 
-        private List<Result> SingleResult(string title, string subtitle, Func<ActionContext, bool> action = null)
+        private List<Result> SingleResult(string title, string subtitle, Func<ActionContext, bool> action = null, string icoPath = WebScraperIcoPath)
         {
             return new List<Result>
             {
@@ -41,7 +43,8 @@ namespace Flow.Launcher.Plugin.WebScraper
                 {
                     Title = title,
                     SubTitle = subtitle,
-                    Action = action
+                    Action = action,
+                    IcoPath = icoPath
                 }
             };
         }
@@ -69,6 +72,18 @@ namespace Flow.Launcher.Plugin.WebScraper
             return localPath;
         }
 
+        async Task<string> TryGetIconAsync(string path)
+        {
+            try
+            {
+                return await GetIconAsync(path);
+            }
+            catch (HttpRequestException)
+            {
+                return null;
+            }
+        }
+
         public Control CreateSettingPanel()
         {
             return new SettingsControl(_settings);
@@ -78,7 +93,7 @@ namespace Flow.Launcher.Plugin.WebScraper
         {
             _context = context;
             _settings = _context.API.LoadSettingJsonStorage<Settings>() ?? new Settings();
-            _client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            _client = new HttpClient();
             _faviconCacheDirectory = Path.Combine(_context.CurrentPluginMetadata.PluginDirectory, "IconCache");
             Directory.CreateDirectory(_faviconCacheDirectory);
             return Task.CompletedTask;
@@ -149,7 +164,8 @@ namespace Flow.Launcher.Plugin.WebScraper
                             _context.API.ChangeQuery(query + " " + kvp.Key);
                             return false;
                         },
-                        Score = scores[kvp.Key]
+                        Score = scores[kvp.Key],
+                        IcoPath = WebScraperIcoPath
                     })
                 );
                 return options;
@@ -169,39 +185,44 @@ namespace Flow.Launcher.Plugin.WebScraper
             }
 
             // Configuration was found, so do the API request
+            var timeoutCancellationToken = new CancellationTokenSource(TimeSpan.FromSeconds(_settings.Timeout)).Token;
+            var combinedToken = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCancellationToken).Token;
+
             var results = new List<Result>();
             foreach (ScrapeConfig scrapeConfig in scrapeConfigs)
             {
                 string body;
                 try
                 {
-                    using HttpResponseMessage data = await _client.GetAsync(new Uri(scrapeConfig.Url), token);
+                    using HttpResponseMessage data = await _client.GetAsync(new Uri(scrapeConfig.Url), combinedToken);
                     if (data.Content.Headers.ContentType?.MediaType.Contains("text/html") != true)
                     {
                         return SingleResult(
                             "The URL did not return a valid HTML response",
-                            "Please check whether the configured URL returns an HTML response"
+                            "Please check whether the configured URL returns an HTML response",
+                            icoPath: ScrapeErrorIcoPath
                         );
                     }
-                    body = await data.Content.ReadAsStringAsync(token);
+                    body = await data.Content.ReadAsStringAsync(combinedToken);
                 }
                 catch (HttpRequestException)
                 {
                     return SingleResult(
                         "No internet connection / cannot reach host",
-                        "Please check your internet connection"
+                        "Please check your internet connection",
+                        icoPath: ScrapeErrorIcoPath
                     );
                 }
-                catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+                catch (TaskCanceledException ex)
                 {
                     return SingleResult(
                         "The HTTP request timed out",
-                        "The website may be slow or unreachable. Try again"
+                        "The website may be slow or unreachable. Try again or change the timeout duration in the plugin settings",
+                        icoPath: ScrapeErrorIcoPath
                     );
                 }
 
-                var doc = new HtmlDocument();
-                doc.LoadHtml(body);
+                var document = await ParseDocument(body, combinedToken);
 
                 foreach (ScrapeResult scrapeResult in scrapeConfig.ScrapeResults)
                 {
@@ -216,11 +237,11 @@ namespace Flow.Launcher.Plugin.WebScraper
 
                         if (usedKeys.Contains(variableBinding.Key))
                         {
-                            var htmlNodes = doc.DocumentNode.SelectNodes(variableBinding.Value);
+                            IHtmlCollection<IElement> htmlNodes = document.QuerySelectorAll(variableBinding.Value);
                             
-                            if (htmlNodes != null)
+                            if (htmlNodes.Length != 0)
                             {
-                                evaluatedXpathDict.Add(variableBinding.Key, new List<string>(htmlNodes.Select(x => WebUtility.HtmlDecode(x.InnerText))));
+                                evaluatedXpathDict.Add(variableBinding.Key, new List<string>(htmlNodes.Select(x => WebUtility.HtmlDecode(x.InnerHtml))));
                             }
                         }
                     }
@@ -241,25 +262,23 @@ namespace Flow.Launcher.Plugin.WebScraper
                     // Check if counts are compatible
                     if (processedEvaluatedXpathDict.Select(x => x.Value.Count).Distinct().Count() > 1)
                     {
-                        return new List<Result>
-                        {
-                            new()
-                            {
-                                Title = $"Xpaths returned incompatible element counts: {string.Join(", ", evaluatedXpathDict.Select(x => x.Value.Count).Distinct())}",
-                                SubTitle = "Please check whether the variable bindings are configured correctly"
-                            }
-                        };
+                        return SingleResult(
+                            $"Cannot generate combinations: variables have incompatible numbers of values",
+                            $"{string.Join(", ", evaluatedXpathDict.Select(x => $"${{{x.Key}}}: {x.Value.Count} matches"))}. Please check whether the variable bindings are configured correctly",
+                            icoPath: ScrapeErrorIcoPath
+                        );
                     }
 
                     // Extract icon
-                    var iconNode = doc.DocumentNode.SelectSingleNode("//link[contains(@rel, \"icon\")]");
+                    var iconNode = document.QuerySelector("link[rel=\"icon\"]");
                     var icoPath = new Uri(new Uri(scrapeConfig.Url), "/favicon.ico").AbsoluteUri;
                     if (iconNode != null)
                     {
-                        var href = iconNode.GetAttributeValue("href", null);
+                        var href = iconNode.GetAttribute("href");
                         icoPath = new Uri(new Uri(scrapeConfig.Url), href).AbsoluteUri;
                     }
-                    var icoPathLocal = await GetIconAsync(icoPath);
+                    
+                    string icoPathLocal = await TryGetIconAsync(icoPath);
 
                     for (var i = 0; i < itemCount; i++)
                     {
@@ -289,6 +308,13 @@ namespace Flow.Launcher.Plugin.WebScraper
             }
 
             return results;
+        }
+
+        private static async Task<IDocument> ParseDocument(string body, CancellationToken token)
+        {
+            IConfiguration angleConfig = Configuration.Default;
+            IBrowsingContext angleContext = BrowsingContext.New(angleConfig);
+            return await angleContext.OpenAsync(req => req.Content(body), cancel: token);
         }
 
         public void SaveSettings()
