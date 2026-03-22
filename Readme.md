@@ -30,6 +30,13 @@ The scrape configurations can be configured using JSON. An example is provided b
           "Header": "body > div:nth-child(1) > h1:nth-child(1)",
           "Link": "body > div:nth-child(1) > p:nth-child(3) > a:nth-child(1)"
         }
+      },
+      {
+        "Title": "The paragraph says: '${Paragraph}'.",
+        "SubTitle": "",
+        "VariableBindings": {
+          "Paragraph": "body > div:nth-child(1) > p:nth-child(2)"
+        }
       }
     ]
   }
