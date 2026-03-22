@@ -7,6 +7,6 @@
     "Version": "1.0.0",
     "Language": "csharp",
     "Website": "https://github.com/Nofontnl/Flow.Launcher.Plugin.WebScraper",
-    "IcoPath": "icon.png",
+    "IcoPath": "Images\\webscraper.png",
     "ExecuteFileName": "Flow.Launcher.Plugin.WebScraper.dll"
 }
