@@ -1,3 +1,5 @@
+using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json;
 using System.Windows;
@@ -9,29 +11,40 @@ namespace Flow.Launcher.Plugin.WebScraper.Views;
 public partial class SettingsControl : UserControl
 {
     public Settings Settings { get; }
-    public string SettingsJson { get; set; }
+    public string ScrapeConfigsJson { get; set; }
+    public string Timeout { get; set;}
 
     public SettingsControl(Settings settings)
     {
         InitializeComponent();
         Settings = settings;
         DataContext = this;
-        SettingsJson = JsonSerializer.Serialize(Settings, new JsonSerializerOptions { WriteIndented = true });
+        ScrapeConfigsJson = JsonSerializer.Serialize(Settings.ScrapeConfigs, new JsonSerializerOptions { WriteIndented = true });
+        Timeout = Settings.Timeout.ToString();
     }
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            var updated = JsonSerializer.Deserialize<Settings>(SettingsJson);
-            if (updated != null)
+            var newScrapeConfigs = JsonSerializer.Deserialize<ObservableCollection<ScrapeConfig>>(ScrapeConfigsJson) ?? new ObservableCollection<ScrapeConfig>();
+            var newTimeoutValid = int.TryParse(Timeout, out int newTimeout) && newTimeout > 0;
+            
+            if (!newTimeoutValid)
             {
-                Settings.ScrapeConfigs = updated.ScrapeConfigs;
+                throw new InvalidOperationException("The timeout must be a positive integer.");
             }
+
+            Settings.ScrapeConfigs = newScrapeConfigs;
+            Settings.Timeout = newTimeout;
         }
         catch (JsonException ex)
         {
             MessageBox.Show("Invalid JSON: " + ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(ex.Message);
         }
     }
 }

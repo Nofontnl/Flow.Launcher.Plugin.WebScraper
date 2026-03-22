@@ -93,7 +93,7 @@ namespace Flow.Launcher.Plugin.WebScraper
         {
             _context = context;
             _settings = _context.API.LoadSettingJsonStorage<Settings>() ?? new Settings();
-            _client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            _client = new HttpClient();
             _faviconCacheDirectory = Path.Combine(_context.CurrentPluginMetadata.PluginDirectory, "IconCache");
             Directory.CreateDirectory(_faviconCacheDirectory);
             return Task.CompletedTask;
@@ -185,13 +185,16 @@ namespace Flow.Launcher.Plugin.WebScraper
             }
 
             // Configuration was found, so do the API request
+            var timeoutCancellationToken = new CancellationTokenSource(TimeSpan.FromSeconds(_settings.Timeout)).Token;
+            var combinedToken = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCancellationToken).Token;
+
             var results = new List<Result>();
             foreach (ScrapeConfig scrapeConfig in scrapeConfigs)
             {
                 string body;
                 try
                 {
-                    using HttpResponseMessage data = await _client.GetAsync(new Uri(scrapeConfig.Url), token);
+                    using HttpResponseMessage data = await _client.GetAsync(new Uri(scrapeConfig.Url), combinedToken);
                     if (data.Content.Headers.ContentType?.MediaType.Contains("text/html") != true)
                     {
                         return SingleResult(
@@ -200,7 +203,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                             icoPath: ScrapeErrorIcoPath
                         );
                     }
-                    body = await data.Content.ReadAsStringAsync(token);
+                    body = await data.Content.ReadAsStringAsync(combinedToken);
                 }
                 catch (HttpRequestException)
                 {
@@ -210,16 +213,16 @@ namespace Flow.Launcher.Plugin.WebScraper
                         icoPath: ScrapeErrorIcoPath
                     );
                 }
-                catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+                catch (TaskCanceledException ex)
                 {
                     return SingleResult(
                         "The HTTP request timed out",
-                        "The website may be slow or unreachable. Try again",
+                        "The website may be slow or unreachable. Try again or change the timeout duration in the plugin settings",
                         icoPath: ScrapeErrorIcoPath
                     );
                 }
 
-                var document = await ParseDocument(body, token);
+                var document = await ParseDocument(body, combinedToken);
 
                 foreach (ScrapeResult scrapeResult in scrapeConfig.ScrapeResults)
                 {
