@@ -25,6 +25,7 @@ namespace Flow.Launcher.Plugin.WebScraper
         private static string _faviconCacheDirectory;
         private const string WebScraperIcoPath = "Images\\webscraper.png";
         private const string ScrapeErrorIcoPath = "Images\\error.png";
+        private const string ScrapeResultIcoPath = "Images\\scraperesult.png";
 
         private static readonly Regex VariableRegex = new(@"\$\{(\w+)\}", RegexOptions.Compiled);
 
@@ -301,7 +302,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                                 _context.API.OpenUrl(scrapeConfig.Url);
                                 return true;
                             },
-                            IcoPath = icoPathLocal
+                            IcoPath = icoPathLocal ?? ScrapeResultIcoPath
                         });
                     }
                 }
