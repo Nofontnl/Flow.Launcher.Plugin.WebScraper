@@ -23,6 +23,8 @@ namespace Flow.Launcher.Plugin.WebScraper
         private PluginInitContext _context;
         private Settings _settings;
         private static string _faviconCacheDirectory;
+        private const string WebScraperIcoPath = "Images\\webscraper.png";
+        private const string ScrapeErrorIcoPath = "Images\\error.png";
 
         private static readonly Regex VariableRegex = new(@"\$\{(\w+)\}", RegexOptions.Compiled);
 
@@ -33,7 +35,7 @@ namespace Flow.Launcher.Plugin.WebScraper
             );
         }
 
-        private List<Result> SingleResult(string title, string subtitle, Func<ActionContext, bool> action = null)
+        private List<Result> SingleResult(string title, string subtitle, Func<ActionContext, bool> action = null, string icoPath = WebScraperIcoPath)
         {
             return new List<Result>
             {
@@ -41,7 +43,8 @@ namespace Flow.Launcher.Plugin.WebScraper
                 {
                     Title = title,
                     SubTitle = subtitle,
-                    Action = action
+                    Action = action,
+                    IcoPath = icoPath
                 }
             };
         }
@@ -161,7 +164,8 @@ namespace Flow.Launcher.Plugin.WebScraper
                             _context.API.ChangeQuery(query + " " + kvp.Key);
                             return false;
                         },
-                        Score = scores[kvp.Key]
+                        Score = scores[kvp.Key],
+                        IcoPath = WebScraperIcoPath
                     })
                 );
                 return options;
@@ -192,7 +196,8 @@ namespace Flow.Launcher.Plugin.WebScraper
                     {
                         return SingleResult(
                             "The URL did not return a valid HTML response",
-                            "Please check whether the configured URL returns an HTML response"
+                            "Please check whether the configured URL returns an HTML response",
+                            icoPath: ScrapeErrorIcoPath
                         );
                     }
                     body = await data.Content.ReadAsStringAsync(token);
@@ -201,14 +206,16 @@ namespace Flow.Launcher.Plugin.WebScraper
                 {
                     return SingleResult(
                         "No internet connection / cannot reach host",
-                        "Please check your internet connection"
+                        "Please check your internet connection",
+                        icoPath: ScrapeErrorIcoPath
                     );
                 }
                 catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
                 {
                     return SingleResult(
                         "The HTTP request timed out",
-                        "The website may be slow or unreachable. Try again"
+                        "The website may be slow or unreachable. Try again",
+                        icoPath: ScrapeErrorIcoPath
                     );
                 }
 
@@ -254,7 +261,8 @@ namespace Flow.Launcher.Plugin.WebScraper
                     {
                         return SingleResult(
                             $"Cannot generate combinations: variables have incompatible numbers of values",
-                            $"{string.Join(", ", evaluatedXpathDict.Select(x => $"${{{x.Key}}}: {x.Value.Count} matches"))}. Please check whether the variable bindings are configured correctly"
+                            $"{string.Join(", ", evaluatedXpathDict.Select(x => $"${{{x.Key}}}: {x.Value.Count} matches"))}. Please check whether the variable bindings are configured correctly",
+                            icoPath: ScrapeErrorIcoPath
                         );
                     }
 
