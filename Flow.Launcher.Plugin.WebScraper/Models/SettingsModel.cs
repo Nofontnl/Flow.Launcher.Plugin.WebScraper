@@ -23,4 +23,5 @@ public class ScrapeConfig
 public class Settings : BaseModel
 {
     public ObservableCollection<ScrapeConfig> ScrapeConfigs { get; set; } = new();
+    public int Timeout { get; set; } = 15;
 }

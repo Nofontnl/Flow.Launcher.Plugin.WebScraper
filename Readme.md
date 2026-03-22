@@ -15,30 +15,27 @@ pm install Web Scraper
 where `config_keyword` is the keyword set in one of the scrape configurations.
 
 ### Scrape configurations
-The plugin can be configured using JSON. An example is provided below.
+The scrape configurations can be configured using JSON. An example is provided below.
 ```json
-{
-  "ScrapeConfigs": [
-    {
-      "Keyword": "example",
-      "Tag": "Example template",
-      "Url": "https://example.com",
-      "ScrapeResults": [
-        {
-          "Title": "The header is: '${Header}'",
-          "SubTitle": "The link reads: '${Link}'",
-          "VariableBindings": {
-            "Header": "body > div:nth-child(1) > h1:nth-child(1)",
-            "Link": "body > div:nth-child(1) > p:nth-child(3) > a:nth-child(1)"
-          }
+[
+  {
+    "Keyword": "example",
+    "Tag": "Example template",
+    "Url": "https://example.com",
+    "ScrapeResults": [
+      {
+        "Title": "The header is: '${Header}'",
+        "SubTitle": "The link reads: '${Link}'",
+        "VariableBindings": {
+          "Header": "body > div:nth-child(1) > h1:nth-child(1)",
+          "Link": "body > div:nth-child(1) > p:nth-child(3) > a:nth-child(1)"
         }
-      ]
-    }
-  ]
-}
+      }
+    ]
+  }
+]
 ```
 where
-* `ScrapeConfigs`: list that contains all scrape configurations.
 * `Keyword`: keyword needed to be typed to scrape using a particular scrape configuration.
 * `Tag`: tag to describe what this scrape configuration is for.
 * `Url`: URL that leads to the page you want to scrape with a particular scrape configuration.
