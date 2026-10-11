@@ -50,10 +50,47 @@ namespace Flow.Launcher.Plugin.WebScraper
             };
         }
 
+        private string GetIconExtension(string url)
+        {
+            string extension = ".png";
+
+            var colonIndex = url.IndexOf(':');
+            int separatorIndex = url.IndexOfAny(new[] { ';', ',' });
+            if (colonIndex != -1 && separatorIndex != -1 && separatorIndex > colonIndex)
+            {
+                string mimeType = url.Substring(colonIndex + 1, separatorIndex - colonIndex - 1)
+                                 .Trim()
+                                 .ToLowerInvariant();
+
+                var mimeToExtension = new Dictionary<string, string>
+                {
+                    { "image/svg+xml", ".svg" },
+                    { "image/png", ".png" },
+                    { "image/jpeg", ".jpg" },
+                    { "image/pjpeg", ".jpg" },
+                    { "image/webp", ".webp" },
+                    { "image/avif", ".avif" },
+                    { "image/gif", ".gif" },
+                    { "image/x-icon", ".ico" },
+                    { "image/vnd.microsoft.icon", ".ico" },
+                    { "image/bmp", ".bmp" },
+                    { "image/x-windows-bmp", ".bmp" },
+                    { "image/tiff", ".tiff" }
+                };
+
+                if (mimeToExtension.TryGetValue(mimeType, out string mappedExt))
+                {
+                    extension = mappedExt;
+                }
+            }
+
+            return extension;
+        }
+
         private string GetCachedIconPath(string url)
         {
             string filename = Convert.ToBase64String(Encoding.UTF8.GetBytes(url))
-                            .Replace("=", "") + ".png";
+                            .Replace("=", "") + "." + GetIconExtension(url);
             return Path.Combine(_faviconCacheDirectory, filename);
         }
 
@@ -63,10 +100,30 @@ namespace Flow.Launcher.Plugin.WebScraper
 
             if (!File.Exists(localPath))
             {
-                using var response = await _client.GetAsync(url);
-                response.EnsureSuccessStatusCode();
+                byte[] bytes = null;
+                if (url.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = url.Split(',', 2);
+                    var metadata = parts[0];
+                    var rawData = parts[1];
 
-                var bytes = await response.Content.ReadAsByteArrayAsync();
+                    if (metadata.Contains(";base64", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bytes = Convert.FromBase64String(rawData);
+                    }
+                    else
+                    {
+                        var svgString = WebUtility.UrlDecode(rawData);
+                        bytes = Encoding.UTF8.GetBytes(svgString);
+                    }
+                }
+                else
+                {
+                    using var response = await _client.GetAsync(url);
+                    response.EnsureSuccessStatusCode();
+                    bytes = await response.Content.ReadAsByteArrayAsync();
+                }
+
                 await File.WriteAllBytesAsync(localPath, bytes);
             }
 
@@ -121,7 +178,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                         }
                     );
                 }
-                
+
                 // Merge configurations with the same keyword
                 List<Result> options = new();
                 var mergedScrapeConfigs = new Dictionary<string, List<string>>();
@@ -239,7 +296,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                         if (usedKeys.Contains(variableBinding.Key))
                         {
                             IHtmlCollection<IElement> htmlNodes = document.QuerySelectorAll(variableBinding.Value);
-                            
+
                             if (htmlNodes.Length != 0)
                             {
                                 evaluatedXpathDict.Add(variableBinding.Key, new List<string>(htmlNodes.Select(x => WebUtility.HtmlDecode(x.InnerHtml))));
@@ -278,7 +335,7 @@ namespace Flow.Launcher.Plugin.WebScraper
                         var href = iconNode.GetAttribute("href");
                         icoPath = new Uri(new Uri(scrapeConfig.Url), href).AbsoluteUri;
                     }
-                    
+
                     string icoPathLocal = await TryGetIconAsync(icoPath);
 
                     for (var i = 0; i < itemCount; i++)
