@@ -4,7 +4,7 @@
     "Name": "Web Scraper",
     "Description": "Scrape the web and view the results in the Flow Launcher",
     "Author": "Nofontnl",
-    "Version": "1.0.1",
+    "Version": "1.0.2",
     "Language": "csharp",
     "Website": "https://github.com/Nofontnl/Flow.Launcher.Plugin.WebScraper",
     "IcoPath": "Images\\webscraper.png",

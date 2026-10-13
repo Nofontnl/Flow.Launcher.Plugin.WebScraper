@@ -52,17 +52,7 @@ namespace Flow.Launcher.Plugin.WebScraper
 
         private string GetIconExtension(string url)
         {
-            string extension = ".png";
-
-            var colonIndex = url.IndexOf(':');
-            int separatorIndex = url.IndexOfAny(new[] { ';', ',' });
-            if (colonIndex != -1 && separatorIndex != -1 && separatorIndex > colonIndex)
-            {
-                string mimeType = url.Substring(colonIndex + 1, separatorIndex - colonIndex - 1)
-                                 .Trim()
-                                 .ToLowerInvariant();
-
-                var mimeToExtension = new Dictionary<string, string>
+            var mimeToExtension = new Dictionary<string, string>
                 {
                     { "image/svg+xml", ".svg" },
                     { "image/png", ".png" },
@@ -78,9 +68,32 @@ namespace Flow.Launcher.Plugin.WebScraper
                     { "image/tiff", ".tiff" }
                 };
 
-                if (mimeToExtension.TryGetValue(mimeType, out string mappedExt))
+            string extension = ".png";
+
+            if (url.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                // data:image/...
+                var colonIndex = url.IndexOf(':');
+                int separatorIndex = url.IndexOfAny(new[] { ';', ',' });
+                if (colonIndex != -1 && separatorIndex != -1 && separatorIndex > colonIndex)
                 {
-                    extension = mappedExt;
+                    string mimeType = url.Substring(colonIndex + 1, separatorIndex - colonIndex - 1)
+                                    .Trim()
+                                    .ToLowerInvariant();
+
+                    if (mimeToExtension.TryGetValue(mimeType, out string mappedExt))
+                    {
+                        extension = mappedExt;
+                    }
+                }
+            }
+            else
+            {
+                // .../icon.svg / png / ...
+                string url_ext = Path.GetExtension(url);
+                if (mimeToExtension.Values.ToList().Contains(url_ext))
+                {
+                    extension = url_ext;
                 }
             }
 
