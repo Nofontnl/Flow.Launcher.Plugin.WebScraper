@@ -3,6 +3,8 @@
 
 A plugin that lets you scrape information from webpages and view the results in the [Flow launcher](https://github.com/Flow-Launcher/Flow.Launcher).
 
+<img width="860" height="203" alt="image" src="https://github.com/user-attachments/assets/11dcb6ee-fd08-4be3-820f-7956fda0f84f" />
+
 ## Installation
 ```
 pm install Web Scraper
